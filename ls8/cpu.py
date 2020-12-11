@@ -1,6 +1,10 @@
 """CPU functionality."""
 
 import sys
+HLT = 0b00000001
+LDI = 0b10000010
+PRN = 0b01000111
+MUL = 0b10100010
 
 class CPU:
     """Main CPU class."""
@@ -11,8 +15,20 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.reg = [0] * 8
+        self.reg[7] = 0xF4
         
+        
+
         self.pc = 0
+        self.ir = 0
+        self.mar = 0
+        self.mdr = 0
+        self.fl = 0
+       
+
+        self.running = True
+
+     
         
 
 
@@ -35,24 +51,54 @@ class CPU:
 
     def load(self):
         """Load a program into memory."""
+        program = []
 
-        address = 0
+        try: 
+            if len(sys.argv) < 2:
+                print(f'Error: missing filename argument')
+                sys.exit(1)
 
-        # For now, we've just hardcoded a program:
+            # add a counter that adds memory at that index 
+            address = 0
+                
+            with open(sys.argv[1]) as f:
+                for line in f:
+                    
+                    split_line = line.split("#")[0]
+                    stripped_split_line = split_line.strip()
+                
+                    if stripped_split_line != '':
+                        
+                        command = int(stripped_split_line, 2)
+                        program.append(command)
+                    
+                for command in program:
+                     self.ram[address] = command
+                     address +=1
+   
+        except FileNotFoundError:
+               print(f'Your file {sys.argv[1]} could not be found in {sys.argv[0]}')
+        
+                                       
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+            
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+                          
+
+
+       
+
+# For now, we've just hardcoded a program:
+
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
 
 
     def alu(self, op, reg_a, reg_b):
@@ -61,6 +107,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif  op == MUL:
+                self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -86,31 +134,49 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-       
-        
+        while self.running:
 
-        running = True
-        HLT = 0b00000001
-       
-       
-        while running:
-            command = self.ram_read(self.pc)
+             ir = self.ram_read(self.pc)
+             operand_a = self.ram_read(self.pc + 1)
+             operand_b = self.ram_read(self.pc + 2)
+             self.execute_command(ir, operand_a, operand_b)
 
-            if command == 0b10000010: 
-                operand_a = self.ram_read(self.pc + 1)
-                operand_b = self.ram_read(self.pc + 2)
-            
-                self.reg[operand_a] = operand_b
-                self.pc += 3
+             
+               
+    def execute_command(self, command, operand_a, operand_b):
+        #0b10100010
+        #Meanings of the bits in the first byte of each instruction: `AABCDDDD`
 
-            if  command == 0b01000111:
+        #* `AA` Number of operands for this opcode, 0-2
+        #* `B` 1 if this is an ALU operation
+        #* `C` 1 if this instruction sets the PC
+        #* `DDDD` Instruction identifier
+
+        alu_command = command >> 5 & 0b1
+
+
+
+        if command ==  HLT:
+                self.running = False
+                self.pc += 1
+
+        if  command == PRN:
                 operand_a = self.ram_read(self.pc + 1)
                 print(self.reg[operand_a])
                 self.pc += 2
+
+        if command == LDI:
+
+                self.reg[operand_a] = operand_b
+                self.pc += 3
+
+       
+                # must incremnt 
+        if alu_command:
+               
+                 self.alu(command, operand_a, operand_b) 
+                 self.pc += 3
                 
-            if command ==  HLT:
-                running = False
-                self.pc += 1
 
-
+    
         
