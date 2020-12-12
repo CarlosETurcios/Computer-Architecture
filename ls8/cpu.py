@@ -5,6 +5,12 @@ HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
 MUL = 0b10100010
+POP = 0b01000110
+PUSH = 0b01000101
+ADD = 0b10100000
+CALL = 0b01010000
+RET = 0b00010011
+SUB = 0b10100001
 
 class CPU:
     """Main CPU class."""
@@ -104,9 +110,11 @@ class CPU:
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
-        if op == "ADD":
+        if op == ADD:
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == SUB: 
+            self.reg[reg_a] -= self.reg[reg_b]
+
         elif  op == MUL:
                 self.reg[reg_a] *= self.reg[reg_b]
         else:
@@ -151,8 +159,14 @@ class CPU:
         #* `B` 1 if this is an ALU operation
         #* `C` 1 if this instruction sets the PC
         #* `DDDD` Instruction identifier
+        #   AABCDDDD
+        #   01010000
 
-        alu_command = command >> 5 & 0b1
+        alu_command = (command >> 5 & 0b1) == 1
+        
+
+      
+      
 
 
 
@@ -176,7 +190,102 @@ class CPU:
                
                  self.alu(command, operand_a, operand_b) 
                  self.pc += 3
-                
+
+        if command == PUSH:
+            # decrement the SP 
+            ## start, the SP point to address 
+          
+           
+            self.reg[7]  -= 1
+
+            # copy the value form given register into adress pointed to by SP
+         
+            register_address = self.ram_read(self.pc + 1)
+            value = self.reg[register_address]
+            # copy into SP address 
+            #  copy this value in to our memory
+            
+
+            # SP = self.reg[7]
+
+            self.ram[self.reg[7]] = value
+            
+            self.pc += 2
+ 
+
+        
+
+
+
+        if command == POP:
+            # Copy the value from the address pointed to by 'SP' to the given register
+            ## get the SP
+            
+            ## copy the value from memory to that SP Adress
+            value = self.ram_read(self.reg[7])
+
+            # get the target register address
+            register_address = self.ram_read(self.pc + 1)
+            # put the value in the register 
+            self.reg[register_address] = value
+
+            # Increment the SP (move it back up )
+            self.reg[7] += 1
+            self.pc += 2
+
+        if command == CALL:
+            # push the return address into the stack 
+            ## find the address/index of the command AFTER call
+            next_command_address = self.pc + 2
+
+            # push address into the stack 
+            ## decrement the SP
+            self.reg[7] -= 1
+
+            self.ram[self.reg[7]] = next_command_address
+
+            register_number = self.ram[self.pc + 1]
+
+            address_to_jump = self.reg[register_number]
+
+            
+
+            self.pc = self.reg[address_to_jump]
+            
+        set_to_pc = True
+            
+            
+            
+
+        if command == RET:
+            # pop from the top of stack
+            # get the value first
+            return_address = self.ram[self.reg[7]]
+            # move the stack pointer back up 
+            self.reg[7] += 1
+            # jump back, and set the pc to this value 
+            self.pc = return_address 
+
+
+
+        num_operands = (command >> 6 & 0b0001)  
+
+        # if not set_to_pc:
+        #     self.pc += (1+ num_operands)
+
+
+
+        # else:
+        #     print(f"Invalid instruction {self.ir} at address {self.pc}")
+        #     sys.exit(1)
+            
+            
+
+
+
+        # if not set_pc_dir:
+        #       self.pc += (1 + num_operands )
+
 
     
         
